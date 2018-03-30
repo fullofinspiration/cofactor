@@ -95,11 +95,13 @@ class CoFacto(BaseEstimator, TransformerMixin):
     def _init_params(self, n_users, n_items):
         ''' Initialize all the latent factors and biases '''
         self.theta = self.init_std * \
-            np.random.randn(n_users, self.n_components).astype(self.dtype)
+                     np.random.randn(n_users, self.n_components).astype(self.dtype)
         self.beta = self.init_std * \
-            np.random.randn(n_items, self.n_components).astype(self.dtype)
+                    np.random.randn(n_items, self.n_components).astype(self.dtype)
         self.gamma = self.init_std * \
-            np.random.randn(n_items, self.n_components).astype(self.dtype)
+                     np.random.randn(n_items, self.n_components).astype(self.dtype)
+        self.user_related_item = self.init_std * \
+                                 np.random.randn(n_items, self.n_components).astype(self.dtype)
         # bias for beta and gamma
         self.bias_b = np.zeros(n_items, dtype=self.dtype)
         self.bias_g = np.zeros(n_items, dtype=self.dtype)
@@ -122,7 +124,7 @@ class CoFacto(BaseEstimator, TransformerMixin):
             weight by default is 1.
 
         vad_data: scipy.sparse.csr_matrix, shape (n_users, n_items)
-            Validation click data. 
+            Validation click data.
 
         **kwargs: dict
             Additional keywords to evaluation function call on validation data
@@ -134,8 +136,9 @@ class CoFacto(BaseEstimator, TransformerMixin):
         '''
         n_users, n_items = X.shape
         assert M.shape == (n_items, n_items)
-
+        # import ipdb; ipdb.set_trace()  # <--- *BAMF!*
         self._init_params(n_users, n_items)
+        # import ipdb; ipdb.set_trace()  # <--- *BAMF!*
         self._update(X, M, F, vad_data, **kwargs)
         return self
 
@@ -144,14 +147,18 @@ class CoFacto(BaseEstimator, TransformerMixin):
 
     def _update(self, X, M, F, vad_data, **kwargs):
         '''Model training and evaluation on validation set'''
+        # import ipdb; ipdb.set_trace()  # <--- *BAMF!*
         XT = X.T.tocsr()  # pre-compute this
         self.vad_ndcg = -np.inf
         for i in xrange(self.max_iter):
             if self.verbose:
                 print('ITERATION #%d' % i)
+            # import ipdb; ipdb.set_trace()  # <--- *BAMF!*
             self._update_factors(X, XT, M, F)
+            # import ipdb; ipdb.set_trace()  # <--- *BAMF!*
             self._update_biases(M, F)
             if vad_data is not None:
+                # import ipdb; ipdb.set_trace()  # <--- *BAMF!*
                 vad_ndcg = self._validate(X, vad_data, **kwargs)
                 if self.early_stopping and self.vad_ndcg > vad_ndcg:
                     break  # we will not save the parameter for this iteration
@@ -163,7 +170,7 @@ class CoFacto(BaseEstimator, TransformerMixin):
     def _update_factors(self, X, XT, M, F):
         if self.verbose:
             start_t = _writeline_and_time('\tUpdating user factors...')
-        self.theta = update_theta(self.beta, X, self.c0,
+        self.theta = update_theta(self.beta, self.user_related_item, X, self.c0,
                                   self.c1, self.lam_theta,
                                   self.n_jobs,
                                   batch_size=self.batch_size)
@@ -171,7 +178,8 @@ class CoFacto(BaseEstimator, TransformerMixin):
             print('\r\tUpdating user factors: time=%.2f'
                   % (time.time() - start_t))
             start_t = _writeline_and_time('\tUpdating item factors...')
-        self.beta = update_beta(self.theta, self.gamma,
+        self.transform_user_related_item = get_new_matrix(X, self.user_related_item, self.theta.shape[1])
+        self.beta = update_beta(self.transform_user_related_item + self.theta, self.gamma,
                                 self.bias_b, self.bias_g, self.alpha,
                                 XT, M, F, self.c0, self.c1, self.lam_beta,
                                 self.n_jobs,
@@ -187,6 +195,15 @@ class CoFacto(BaseEstimator, TransformerMixin):
                                   batch_size=self.batch_size)
         if self.verbose:
             print('\r\tUpdating context factors: time=%.2f'
+                  % (time.time() - start_t))
+        pass
+
+        self.user_related_item = update_user_related_item(self.theta, self.beta, self.user_related_item, X, self.c0,
+                                                          self.c1, self.lam_theta,
+                                                          self.n_jobs,
+                                                          batch_size=self.batch_size)
+        if self.verbose:
+            print('\r\tUpdating user_related_item: time=%.2f'
                   % (time.time() - start_t))
         pass
 
@@ -209,10 +226,11 @@ class CoFacto(BaseEstimator, TransformerMixin):
         pass
 
     def _validate(self, X, vad_data, **kwargs):
+        self.transform_user_related_item = get_new_matrix(X, self.user_related_item, self.theta.shape[1])
         vad_ndcg = rec_eval.normalized_dcg_at_k(X, vad_data,
-                                                self.theta,
+                                                self.theta + self.transform_user_related_item,
                                                 self.beta,
-                                                **kwargs)
+                                                ** kwargs)
         if self.verbose:
             print('\tValidation NDCG@k: %.5f' % vad_ndcg)
         return vad_ndcg
@@ -240,7 +258,20 @@ def get_row(Y, i):
     return Y.data[lo:hi], Y.indices[lo:hi]
 
 
-def update_theta(beta, X, c0, c1, lam_theta, n_jobs, batch_size=1000):
+def get_new_matrix(X, user_related_item, f):
+    transform_of_user_related_item = np.empty((X.shape[0], f), dtype=user_related_item.dtype)
+    for i in np.arange(X.shape[0]):
+        x_i, idx_x_i = get_row(X, i)
+        user_related_item_sum = np.zeros(f)
+        if idx_x_i.size > 0:
+            for i in idx_x_i:
+                user_related_item_sum = user_related_item_sum + user_related_item[i]
+            user_related_item_sum /= np.sqrt(idx_x_i.size)
+        transform_of_user_related_item[i] = user_related_item_sum
+    return transform_of_user_related_item
+
+
+def update_theta(beta, user_related_item, X, c0, c1, lam_theta, n_jobs, batch_size=1000):
     '''Update user latent factors'''
     m, n = X.shape  # m: number of users, n: number of items
     f = beta.shape[1]  # f: number of factors
@@ -250,22 +281,27 @@ def update_theta(beta, X, c0, c1, lam_theta, n_jobs, batch_size=1000):
 
     start_idx = range(0, m, batch_size)
     end_idx = start_idx[1:] + [m]
+    # res = _solve_weighted_factor(0, m, beta, user_related_item, X, BTBpR, c0, c1, f, lam_theta)
     res = Parallel(n_jobs=n_jobs)(
         delayed(_solve_weighted_factor)(
-            lo, hi, beta, X, BTBpR, c0, c1, f, lam_theta)
+            lo, hi, beta, user_related_item, X, BTBpR, c0, c1, f, lam_theta)
         for lo, hi in zip(start_idx, end_idx))
     theta = np.vstack(res)
     return theta
 
 
-def _solve_weighted_factor(lo, hi, beta, X, BTBpR, c0, c1, f, lam_theta):
+def _solve_weighted_factor(lo, hi, beta, user_related_item, X, BTBpR, c0, c1, f, lam_theta):
     theta_batch = np.empty((hi - lo, f), dtype=beta.dtype)
     for ib, u in enumerate(xrange(lo, hi)):
         x_u, idx_u = get_row(X, u)
         B_u = beta[idx_u]
+        user_related_item_sum = np.zeros(f, dtype=float)
+        for j in idx_u:
+            user_related_item_sum = user_related_item_sum + user_related_item[j]
         a = x_u.dot(c1 * B_u)
         B = BTBpR + B_u.T.dot((c1 - c0) * B_u)
-        theta_batch[ib] = LA.solve(B, a)
+        c = B.dot(user_related_item_sum)
+        theta_batch[ib] = LA.solve(B, a - (c / np.sqrt(idx_u.size)))
     return theta_batch
 
 
@@ -331,6 +367,24 @@ def update_gamma(beta, bias_b, bias_g, alpha, MT, FT, lam_gamma,
     return gamma
 
 
+def update_user_related_item(theta, beta, user_related_item, X, c0, c1, lam_theta, n_jobs, batch_size=1000):
+    '''Update user related item'''
+    m, n = X.shape  # m: number of users, n: number of items
+    f = beta.shape[1]  # f: number of factors
+
+    BTB = c0 * np.dot(beta.T, beta)  # precompute this
+    XT = X.T
+    start_idx = range(0, n, batch_size)
+    end_idx = start_idx[1:] + [n]
+    #res = update_user_related_item_detail(0, n, theta, beta, user_related_item, XT, BTB, c0, c1, f, lam_theta)
+    res = Parallel(n_jobs=n_jobs)(
+        delayed(update_user_related_item_detail)(
+            lo, hi, theta, beta, user_related_item, XT, BTB, c0, c1, f, lam_theta)
+        for lo, hi in zip(start_idx, end_idx))
+    theta = np.vstack(res)
+    return theta
+
+
 def _solve_factor(lo, hi, beta, bias_b, bias_g, alpha, MT, FT, f, lam_gamma,
                   BTBpR=None):
     gamma_batch = np.empty((hi - lo, f), dtype=beta.dtype)
@@ -349,6 +403,35 @@ def _solve_factor(lo, hi, beta, bias_b, bias_g, alpha, MT, FT, f, lam_gamma,
         a = np.dot(rsd, B_j)
         gamma_batch[ib] = LA.solve(B, a)
     return gamma_batch
+
+
+def update_user_related_item_detail(lo, hi, theta, beta, user_related_item, XT, BTB, c0, c1, f, lam_theta):
+    user_related_item_batch = np.empty((hi - lo, f), dtype=beta.dtype)
+    for ib, i in enumerate(xrange(lo, hi)):
+        # get u that has been rated
+        x_u_, idx_u_ = get_row(XT, i)
+        B_of_sum = np.zeros((f, f), dtype=beta.dtype)
+        a_of_sum = np.zeros(f, dtype=beta.dtype)
+        c_of_sum = np.zeros(f, dtype=beta.dtype)
+        for idx_u in idx_u_:
+            x_i_of_u, idx_i_of_u = get_row(XT.T, idx_u)
+            B_u = beta[idx_i_of_u]
+            user_related_item_sum = np.zeros(f, dtype=beta.dtype)
+            for j in idx_i_of_u:
+                if j != i:
+                    user_related_item_sum = user_related_item_sum + user_related_item[j]
+            user_related_item_sum /= np.sqrt(x_i_of_u.size)
+            user_related_item_sum = user_related_item_sum + theta[idx_u]
+            a = x_i_of_u.dot(c1 * B_u)
+            a /= np.sqrt(x_i_of_u.size)
+            a_of_sum = a_of_sum + a
+            B = BTB + B_u.T.dot((c1 - c0) * B_u)
+            B /= idx_i_of_u.size
+            B_of_sum = B_of_sum + B
+            c = B.dot(user_related_item_sum)
+            c_of_sum = c_of_sum + c
+        user_related_item_batch[ib] = LA.solve(B_of_sum + lam_theta * np.eye(f, dtype=beta.dtype), a_of_sum - c_of_sum)
+    return user_related_item_batch
 
 
 def update_bias(beta, gamma, bias_g, alpha, M, F, n_jobs, batch_size=1000):
