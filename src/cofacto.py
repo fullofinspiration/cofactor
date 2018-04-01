@@ -241,7 +241,7 @@ class CoFacto(BaseEstimator, TransformerMixin):
             os.makedirs(self.save_dir)
         filename = 'CoFacto_K%d_iter%d.npz' % (self.n_components, iter)
         np.savez(os.path.join(self.save_dir, filename), U=self.theta,
-                 V=self.beta)
+                 V=self.beta, WW=self.transform_user_related_item+self.theta)
 
 
 # Utility functions #

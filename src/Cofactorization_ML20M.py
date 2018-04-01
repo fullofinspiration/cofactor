@@ -23,7 +23,7 @@ if __name__ == '__main__':
     import seaborn as sns
     sns.set(context="paper", font_scale=1.5, rc={"lines.linewidth": 2}, font='DejaVu Serif')
     import sys
-    sys.path.append('I:\workspace\GitHub_file\cofactor-master\src')
+    sys.path.append('E:\workspace\source_code\cofactor\src')
 
 
     # In[2]:
