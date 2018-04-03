@@ -373,7 +373,7 @@ def update_user_related_item(theta, beta, user_related_item, X, c0, c1, lam_thet
     f = beta.shape[1]  # f: number of factors
 
     BTB = c0 * np.dot(beta.T, beta)  # precompute this
-    XT = X.T
+    XT = X.T.tocsr()
     start_idx = range(0, n, batch_size)
     end_idx = start_idx[1:] + [n]
     #res = update_user_related_item_detail(0, n, theta, beta, user_related_item, XT, BTB, c0, c1, f, lam_theta)
@@ -414,7 +414,7 @@ def update_user_related_item_detail(lo, hi, theta, beta, user_related_item, XT, 
         a_of_sum = np.zeros(f, dtype=beta.dtype)
         c_of_sum = np.zeros(f, dtype=beta.dtype)
         for idx_u in idx_u_:
-            x_i_of_u, idx_i_of_u = get_row(XT.T, idx_u)
+            x_i_of_u, idx_i_of_u = get_row(XT.T.tocsr(), idx_u)
             B_u = beta[idx_i_of_u]
             user_related_item_sum = np.zeros(f, dtype=beta.dtype)
             for j in idx_i_of_u:
