@@ -230,7 +230,7 @@ class CoFacto(BaseEstimator, TransformerMixin):
         vad_ndcg = rec_eval.normalized_dcg_at_k(X, vad_data,
                                                 self.theta + self.transform_user_related_item,
                                                 self.beta,
-                                                ** kwargs)
+                                                **kwargs)
         if self.verbose:
             print('\tValidation NDCG@k: %.5f' % vad_ndcg)
         return vad_ndcg
@@ -241,7 +241,7 @@ class CoFacto(BaseEstimator, TransformerMixin):
             os.makedirs(self.save_dir)
         filename = 'CoFacto_K%d_iter%d.npz' % (self.n_components, iter)
         np.savez(os.path.join(self.save_dir, filename), U=self.theta,
-                 V=self.beta, WW=self.transform_user_related_item+self.theta)
+                 V=self.beta, WW=self.transform_user_related_item + self.theta)
 
 
 # Utility functions #
@@ -249,6 +249,13 @@ def _writeline_and_time(s):
     sys.stdout.write(s)
     sys.stdout.flush()
     return time.time()
+
+
+def get_length_of_u(Y):
+    b = np.zeros(Y.shape[0])
+    for i in Y.shape[0]:
+        b[i] = Y.indptr[i + 1] - Y.indptr[i]
+    return b
 
 
 def get_row(Y, i):
@@ -376,10 +383,13 @@ def update_user_related_item(theta, beta, user_related_item, X, c0, c1, lam_thet
     XT = X.T.tocsr()
     start_idx = range(0, n, batch_size)
     end_idx = start_idx[1:] + [n]
-    #res = update_user_related_item_detail(0, n, theta, beta, user_related_item, XT, BTB, c0, c1, f, lam_theta)
+    new_theta = get_new_matrix(X, user_related_item, f)
+
+    length_of_u = get_length_of_u(X)
+    # res = update_user_related_item_detail(0, n, theta, beta, user_related_item, XT, BTB, c0, c1, f, lam_theta)
     res = Parallel(n_jobs=n_jobs)(
         delayed(update_user_related_item_detail)(
-            lo, hi, theta, beta, user_related_item, XT, BTB, c0, c1, f, lam_theta)
+            lo, hi, theta, beta, user_related_item, XT, BTB, c0, c1, f, lam_theta, length_of_u, new_theta)
         for lo, hi in zip(start_idx, end_idx))
     theta = np.vstack(res)
     return theta
@@ -405,31 +415,29 @@ def _solve_factor(lo, hi, beta, bias_b, bias_g, alpha, MT, FT, f, lam_gamma,
     return gamma_batch
 
 
-def update_user_related_item_detail(lo, hi, theta, beta, user_related_item, XT, BTB, c0, c1, f, lam_theta):
+def update_user_related_item_detail(lo, hi, theta, beta, user_related_item, XT, BTB, c0, c1, f, lam_theta, length_of_u,
+                                    new_theta):
     user_related_item_batch = np.empty((hi - lo, f), dtype=beta.dtype)
     for ib, i in enumerate(xrange(lo, hi)):
         # get u that has been rated
         x_u_, idx_u_ = get_row(XT, i)
-        B_of_sum = np.zeros((f, f), dtype=beta.dtype)
         a_of_sum = np.zeros(f, dtype=beta.dtype)
-        c_of_sum = np.zeros(f, dtype=beta.dtype)
+        parameter_of_B_sum = np.zeros(beta.shape[0], dtype=beta.dtype)
+        parameter_of_C_sum = np.zeros(beta.shape[0], dtype=beta.dtype)
         for idx_u in idx_u_:
             x_i_of_u, idx_i_of_u = get_row(XT.T.tocsr(), idx_u)
-            B_u = beta[idx_i_of_u]
-            user_related_item_sum = np.zeros(f, dtype=beta.dtype)
-            for j in idx_i_of_u:
-                if j != i:
-                    user_related_item_sum = user_related_item_sum + user_related_item[j]
-            user_related_item_sum /= np.sqrt(x_i_of_u.size)
-            user_related_item_sum = user_related_item_sum + theta[idx_u]
-            a = x_i_of_u.dot(c1 * B_u)
-            a /= np.sqrt(x_i_of_u.size)
-            a_of_sum = a_of_sum + a
-            B = BTB + B_u.T.dot((c1 - c0) * B_u)
-            B /= idx_i_of_u.size
-            B_of_sum = B_of_sum + B
+            parameter = np.ones(beta.shape[0], dtype=beta.dtype)
+            parameter *= c0
+            parameter[idx_i_of_u] += c1 - c0
+            parameter_of_B = parameter / length_of_u[idx_u]
+            paramater_c = np.zeros(beta.shape[0], dtype=beta.dtype)
+            paramater_c[idx_i_of_u] = c1
+            paramater_c /= np.sqrt(length_of_u[idx_u])
+            parameter_of_B_sum += parameter_of_B
+            parameter_of_C_sum += paramater_c
+
             c = B.dot(user_related_item_sum)
-            c_of_sum = c_of_sum + c
+
         user_related_item_batch[ib] = LA.solve(B_of_sum + lam_theta * np.eye(f, dtype=beta.dtype), a_of_sum - c_of_sum)
     return user_related_item_batch
 
