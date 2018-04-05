@@ -198,7 +198,7 @@ class CoFacto(BaseEstimator, TransformerMixin):
                   % (time.time() - start_t))
         pass
 
-        self.user_related_item = update_user_related_item(self.theta, self.beta, self.user_related_item, X, self.c0,
+        self.user_related_item = update_user_related_item(self.beta, self.user_related_item, X, self.c0,
                                                           self.c1, self.lam_theta,
                                                           self.n_jobs,
                                                           batch_size=self.batch_size)
@@ -253,9 +253,10 @@ def _writeline_and_time(s):
 
 def get_length_of_u(Y):
     b = np.zeros(Y.shape[0])
-    for i in Y.shape[0]:
+    for i in np.arange(Y.shape[0]):
         b[i] = Y.indptr[i + 1] - Y.indptr[i]
     return b
+
 
 
 def get_row(Y, i):
@@ -374,23 +375,23 @@ def update_gamma(beta, bias_b, bias_g, alpha, MT, FT, lam_gamma,
     return gamma
 
 
-def update_user_related_item(theta, beta, user_related_item, X, c0, c1, lam_theta, n_jobs, batch_size=1000):
+def update_user_related_item(beta, user_related_item, X, c0, c1, lam_theta, n_jobs, batch_size=1000):
     '''Update user related item'''
     m, n = X.shape  # m: number of users, n: number of items
     f = beta.shape[1]  # f: number of factors
-
-    BTB = c0 * np.dot(beta.T, beta)  # precompute this
     XT = X.T.tocsr()
     start_idx = range(0, n, batch_size)
     end_idx = start_idx[1:] + [n]
     new_theta = get_new_matrix(X, user_related_item, f)
 
     length_of_u = get_length_of_u(X)
-    # res = update_user_related_item_detail(0, n, theta, beta, user_related_item, XT, BTB, c0, c1, f, lam_theta)
-    res = Parallel(n_jobs=n_jobs)(
+    res = update_user_related_item_detail(0, n, beta, XT, c0, c1, f, lam_theta, length_of_u,
+            new_theta)
+    '''res = Parallel(n_jobs=n_jobs)(
         delayed(update_user_related_item_detail)(
-            lo, hi, theta, beta, user_related_item, XT, BTB, c0, c1, f, lam_theta, length_of_u, new_theta)
-        for lo, hi in zip(start_idx, end_idx))
+            lo, hi, beta, XT, c0, c1, f, lam_theta, length_of_u,
+            new_theta)
+        for lo, hi in zip(start_idx, end_idx))'''
     theta = np.vstack(res)
     return theta
 
@@ -415,13 +416,13 @@ def _solve_factor(lo, hi, beta, bias_b, bias_g, alpha, MT, FT, f, lam_gamma,
     return gamma_batch
 
 
-def update_user_related_item_detail(lo, hi, theta, beta, user_related_item, XT, BTB, c0, c1, f, lam_theta, length_of_u,
+def update_user_related_item_detail(lo, hi, beta, XT, c0, c1, f, lam_theta, length_of_u,
                                     new_theta):
     user_related_item_batch = np.empty((hi - lo, f), dtype=beta.dtype)
     for ib, i in enumerate(xrange(lo, hi)):
         # get u that has been rated
         x_u_, idx_u_ = get_row(XT, i)
-        a_of_sum = np.zeros(f, dtype=beta.dtype)
+        parameter_a_of_sum = np.zeros(beta.shape[0], dtype=beta.dtype)
         parameter_of_B_sum = np.zeros(beta.shape[0], dtype=beta.dtype)
         parameter_of_C_sum = np.zeros(beta.shape[0], dtype=beta.dtype)
         for idx_u in idx_u_:
@@ -429,16 +430,18 @@ def update_user_related_item_detail(lo, hi, theta, beta, user_related_item, XT, 
             parameter = np.ones(beta.shape[0], dtype=beta.dtype)
             parameter *= c0
             parameter[idx_i_of_u] += c1 - c0
-            parameter_of_B = parameter / length_of_u[idx_u]
-            paramater_c = np.zeros(beta.shape[0], dtype=beta.dtype)
-            paramater_c[idx_i_of_u] = c1
-            paramater_c /= np.sqrt(length_of_u[idx_u])
-            parameter_of_B_sum += parameter_of_B
-            parameter_of_C_sum += paramater_c
-
-            c = B.dot(user_related_item_sum)
-
+            paramater_a = np.zeros(beta.shape[0], dtype=beta.dtype)
+            paramater_a[idx_i_of_u] = c1
+            paramater_a /= np.sqrt(length_of_u[idx_u])
+            parameter_of_B_sum += parameter / length_of_u[idx_u]
+            parameter_a_of_sum += paramater_a
+            parameter_of_C_sum += parameter / np.sqrt(length_of_u[idx_u])
+        B_of_sum = np.dot(beta.T, np.dot(np.diag(parameter_of_B_sum, beta)))
+        a_of_sum = parameter_a_of_sum.dot(beta)
+        c_of_sum = np.dot(parameter_of_C_sum.dot(new_theta), np.dot(beta.T, beta))
+        print("                     ", idx_u)
         user_related_item_batch[ib] = LA.solve(B_of_sum + lam_theta * np.eye(f, dtype=beta.dtype), a_of_sum - c_of_sum)
+        print(ib)
     return user_related_item_batch
 
 
