@@ -258,7 +258,6 @@ def get_length_of_u(Y):
     return b
 
 
-
 def get_row(Y, i):
     '''Given a scipy.sparse.csr_matrix Y, get the values and indices of the
     non-zero values in i_th row'''
@@ -386,7 +385,7 @@ def update_user_related_item(beta, user_related_item, X, c0, c1, lam_theta, n_jo
 
     length_of_u = get_length_of_u(X)
     res = update_user_related_item_detail(0, n, beta, XT, c0, c1, f, lam_theta, length_of_u,
-            new_theta)
+                                          new_theta)
     '''res = Parallel(n_jobs=n_jobs)(
         delayed(update_user_related_item_detail)(
             lo, hi, beta, XT, c0, c1, f, lam_theta, length_of_u,
@@ -422,24 +421,18 @@ def update_user_related_item_detail(lo, hi, beta, XT, c0, c1, f, lam_theta, leng
     for ib, i in enumerate(xrange(lo, hi)):
         # get u that has been rated
         x_u_, idx_u_ = get_row(XT, i)
-        parameter_a_of_sum = np.zeros(beta.shape[0], dtype=beta.dtype)
-        parameter_of_B_sum = np.zeros(beta.shape[0], dtype=beta.dtype)
-        parameter_of_C_sum = np.zeros(beta.shape[0], dtype=beta.dtype)
-        for idx_u in idx_u_:
-            x_i_of_u, idx_i_of_u = get_row(XT.T.tocsr(), idx_u)
-            parameter = np.ones(beta.shape[0], dtype=beta.dtype)
-            parameter *= c0
-            parameter[idx_i_of_u] += c1 - c0
-            paramater_a = np.zeros(beta.shape[0], dtype=beta.dtype)
-            paramater_a[idx_i_of_u] = c1
-            paramater_a /= np.sqrt(length_of_u[idx_u])
-            parameter_of_B_sum += parameter / length_of_u[idx_u]
-            parameter_a_of_sum += paramater_a
-            parameter_of_C_sum += parameter / np.sqrt(length_of_u[idx_u])
-        B_of_sum = np.dot(beta.T, np.dot(np.diag(parameter_of_B_sum, beta)))
-        a_of_sum = parameter_a_of_sum.dot(beta)
-        c_of_sum = np.dot(parameter_of_C_sum.dot(new_theta), np.dot(beta.T, beta))
-        print("                     ", idx_u)
+        item_X = XT.T.tocsr()[idx_u_]
+        item_X_array = item_X.toarray()
+        item_X_array[item_X_array == 0] = c0
+        item_X_array[item_X_array == 1] = c1
+        item_length_of_u = length_of_u[idx_u_]
+        parameter_B = (1 / item_length_of_u).dot(item_X_array)
+        item_X[item_X == 1] = c1
+        parameter_A = (1 / np.sqrt(item_length_of_u).dot(item_X.toarray()))
+        parameter_C = (1 / item_length_of_u).dot(np.sqrt(item_X_array))
+        B_of_sum = np.dot(beta.T, np.dot(np.diag(parameter_B), beta))
+        a_of_sum = parameter_A.dot(beta)
+        c_of_sum = np.dot(parameter_C.dot(new_theta), np.dot(beta.T, beta))
         user_related_item_batch[ib] = LA.solve(B_of_sum + lam_theta * np.eye(f, dtype=beta.dtype), a_of_sum - c_of_sum)
         print(ib)
     return user_related_item_batch
