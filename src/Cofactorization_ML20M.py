@@ -326,7 +326,7 @@ if __name__ == '__main__':
 
     scale = 0.03
 
-    n_components = 100
+    n_components = 10
     max_iter = 20
     n_jobs = 8
     lam_theta = lam_beta = 1e-5 * scale
