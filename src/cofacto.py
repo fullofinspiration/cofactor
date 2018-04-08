@@ -384,13 +384,13 @@ def update_user_related_item(beta, user_related_item, X, c0, c1, lam_theta, n_jo
     new_theta = get_new_matrix(X, user_related_item, f)
 
     length_of_u = get_length_of_u(X)
-    res = update_user_related_item_detail(0, n, beta, XT, c0, c1, f, lam_theta, length_of_u,
-                                          new_theta)
-    '''res = Parallel(n_jobs=n_jobs)(
+    '''res = update_user_related_item_detail(0, n, beta, XT, c0, c1, f, lam_theta, length_of_u,
+                                          new_theta)'''
+    res = Parallel(n_jobs=n_jobs)(
         delayed(update_user_related_item_detail)(
             lo, hi, beta, XT, c0, c1, f, lam_theta, length_of_u,
             new_theta)
-        for lo, hi in zip(start_idx, end_idx))'''
+        for lo, hi in zip(start_idx, end_idx))
     theta = np.vstack(res)
     return theta
 
@@ -432,7 +432,7 @@ def update_user_related_item_detail(lo, hi, beta, XT, c0, c1, f, lam_theta, leng
         parameter_C = (1 / item_length_of_u).dot(np.sqrt(item_X_array))
         B_of_sum = np.dot(beta.T, np.dot(np.diag(parameter_B), beta))
         a_of_sum = parameter_A.dot(beta)
-        c_of_sum = np.dot(parameter_C.dot(new_theta), np.dot(beta.T, beta))
+        c_of_sum = np.dot(np.dot(beta.T, np.dot(np.diag(parameter_C), beta)), new_theta[idx_u_].sum(axis=0))
         user_related_item_batch[ib] = LA.solve(B_of_sum + lam_theta * np.eye(f, dtype=beta.dtype), a_of_sum - c_of_sum)
         print(ib)
     return user_related_item_batch
