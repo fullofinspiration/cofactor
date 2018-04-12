@@ -255,6 +255,7 @@ def get_length_of_u(Y):
     b = np.zeros(Y.shape[0])
     for i in np.arange(Y.shape[0]):
         b[i] = Y.indptr[i + 1] - Y.indptr[i]
+        #print('i is', i, "b[i] ")
     return b
 
 
@@ -271,10 +272,12 @@ def get_new_matrix(X, user_related_item, f):
         x_i, idx_x_i = get_row(X, i)
         user_related_item_sum = np.zeros(f)
         if idx_x_i.size > 0:
-            for i in idx_x_i:
-                user_related_item_sum = user_related_item_sum + user_related_item[i]
+            for j in idx_x_i:
+                user_related_item_sum = user_related_item_sum + user_related_item[j]
+                #print("       ", j)
             user_related_item_sum /= np.sqrt(idx_x_i.size)
         transform_of_user_related_item[i] = user_related_item_sum
+        #print(i, "the ith is ", transform_of_user_related_item[i])
     return transform_of_user_related_item
 
 
@@ -384,13 +387,13 @@ def update_user_related_item(beta, user_related_item, X, c0, c1, lam_theta, n_jo
     new_theta = get_new_matrix(X, user_related_item, f)
 
     length_of_u = get_length_of_u(X)
-    '''res = update_user_related_item_detail(0, n, beta, XT, c0, c1, f, lam_theta, length_of_u,
-                                          new_theta)'''
-    res = Parallel(n_jobs=n_jobs)(
+    res = update_user_related_item_detail(0, n, beta, XT, c0, c1, f, lam_theta, length_of_u,
+                                          new_theta)
+    '''res = Parallel(n_jobs=n_jobs)(
         delayed(update_user_related_item_detail)(
             lo, hi, beta, XT, c0, c1, f, lam_theta, length_of_u,
             new_theta)
-        for lo, hi in zip(start_idx, end_idx))
+        for lo, hi in zip(start_idx, end_idx))'''
     theta = np.vstack(res)
     return theta
 
@@ -422,6 +425,7 @@ def update_user_related_item_detail(lo, hi, beta, XT, c0, c1, f, lam_theta, leng
         # get u that has been rated
         x_u_, idx_u_ = get_row(XT, i)
         item_X = XT.T.tocsr()[idx_u_]
+        item_X.astype(np.float32)
         item_X_array = item_X.toarray()
         item_X_array[item_X_array == 0] = c0
         item_X_array[item_X_array == 1] = c1
