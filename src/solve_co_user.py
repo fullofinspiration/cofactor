@@ -4,7 +4,7 @@ import os
 import sys
 from joblib import Parallel, delayed
 
-DATA_DIR = 'E:\datasets\ml-20m\pro1'
+DATA_DIR = 'E:\datasets\ml-100k\pro2'
 
 os.environ['OPENBLAS_NUM_THREADS'] = '1'
 

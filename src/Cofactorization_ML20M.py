@@ -39,7 +39,7 @@ if __name__ == '__main__':
 
     # In[3]:
 
-    DATA_DIR = 'E:\datasets\ml-20m\pro'
+    DATA_DIR = 'E:\datasets\ml-100k\pro2'
 
     # In[4]:
 
@@ -126,13 +126,12 @@ if __name__ == '__main__':
 
     from joblib import Parallel, delayed
     import solve_co_user
-    batch_size = 2
+    batch_size = 400
 
     start_idx = range(0, n_items, batch_size)
     end_idx = start_idx[1:] + [n_items]
     train_data_T = train_data.T.tocsr()
-    solve_co_user.use_coord_batch(start_idx, end_idx, train_data_T)
-    # Parallel(n_jobs=8)(delayed(_coord_batch)(lo, hi, train_data) for lo, hi in zip(start_idx, end_idx))
+    #solve_co_user.use_coord_batch(start_idx, end_idx, train_data_T)
 
     '''
     for lo, hi in zip(start_idx, end_idx):
@@ -163,11 +162,11 @@ if __name__ == '__main__':
 
     # In[20]:
 
-    '''
+
     np.save(os.path.join(DATA_DIR, 'coordinate_co_binary_data.npy'), X.data)
     np.save(os.path.join(DATA_DIR, 'coordinate_co_binary_indices.npy'), X.indices)
     np.save(os.path.join(DATA_DIR, 'coordinate_co_binary_indptr.npy'), X.indptr)
-    '''
+
 
     # In[21]:
 
