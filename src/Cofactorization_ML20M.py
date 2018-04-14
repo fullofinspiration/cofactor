@@ -121,27 +121,17 @@ if __name__ == '__main__':
 
     # In[17]:
 
-    def _coord_batch(lo, hi, train_data):
-        rows = []
-        cols = []
-        for u in xrange(lo, hi):
-            for w, c in itertools.permutations(train_data[u].nonzero()[1], 2):
-                rows.append(w)
-                cols.append(c)
-        np.save(os.path.join(DATA_DIR, 'coo_%d_%d.npy' % (lo, hi)),
-                np.concatenate([np.array(rows)[:, None], np.array(cols)[:, None]], axis=1))
-        pass
-
 
     # In[18]:
 
     from joblib import Parallel, delayed
+    import solve_co_user
+    batch_size = 2
 
-    batch_size = 5000
-
-    start_idx = range(0, n_users, batch_size)
-    end_idx = start_idx[1:] + [n_users]
-
+    start_idx = range(0, n_items, batch_size)
+    end_idx = start_idx[1:] + [n_items]
+    train_data_T = train_data.T.tocsr()
+    solve_co_user.use_coord_batch(start_idx, end_idx, train_data_T)
     # Parallel(n_jobs=8)(delayed(_coord_batch)(lo, hi, train_data) for lo, hi in zip(start_idx, end_idx))
 
     '''

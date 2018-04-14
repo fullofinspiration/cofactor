@@ -152,7 +152,7 @@ def filter_triplets(tp, min_uc=5, min_sc=0):
 # In[18]:
 
 
-    tr_vd_raw_data, user_activity, item_popularity = filter_triplets(tr_vd_raw_data)
+tr_vd_raw_data, user_activity, item_popularity = filter_triplets(tr_vd_raw_data)
 
 
 # In[19]:
@@ -181,7 +181,7 @@ user2id = dict((uid, i) for (i, uid) in enumerate(unique_uid))
 # In[22]:
 
 
-with open(os.path.join(DATA_DIR, 'pro', 'unique_uid.txt'), 'w') as f:
+with open(os.path.join(DATA_DIR, 'pro2', 'unique_uid.txt'), 'w') as f:
     for uid in unique_uid:
         f.write('%s\n' % uid)
 
@@ -189,7 +189,7 @@ with open(os.path.join(DATA_DIR, 'pro', 'unique_uid.txt'), 'w') as f:
 # In[23]:
 
 
-with open(os.path.join(DATA_DIR, 'pro', 'unique_sid.txt'), 'w') as f:
+with open(os.path.join(DATA_DIR, 'pro2', 'unique_sid.txt'), 'w') as f:
     for sid in unique_sid:
         f.write('%s\n' % sid)
 
@@ -314,19 +314,19 @@ def numerize(tp):
 
 
 train_data = numerize(train_raw_data)
-train_data.to_csv(os.path.join(DATA_DIR, 'pro', 'train.csv'), index=False)
+train_data.to_csv(os.path.join(DATA_DIR, 'pro2', 'train.csv'), index=False)
 
 
 # In[120]:
 
 
 vad_data = numerize(vad_raw_data)
-vad_data.to_csv(os.path.join(DATA_DIR, 'pro', 'validation.csv'), index=False)
+vad_data.to_csv(os.path.join(DATA_DIR, 'pro2', 'validation.csv'), index=False)
 
 
 # In[121]:
 
 
 test_data = numerize(test_raw_data)
-test_data.to_csv(os.path.join(DATA_DIR, 'pro', 'test.csv'), index=False)
+test_data.to_csv(os.path.join(DATA_DIR, 'pro2', 'test.csv'), index=False)
 
