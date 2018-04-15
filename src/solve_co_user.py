@@ -1,3 +1,4 @@
+# encoding:utf-8
 import itertools
 import glob
 import os
@@ -23,7 +24,9 @@ import sys
 def _coord_batch(lo, hi, train_data, data_dir):
     rows = []
     cols = []
+    print("%d %d:" % (lo, hi))
     for u in xrange(lo, hi):
+        print("  %d" % (train_data[u].nonzero()[1].size))
         for w, c in itertools.permutations(train_data[u].nonzero()[1], 2):
             rows.append(w)
             cols.append(c)
@@ -33,6 +36,6 @@ def _coord_batch(lo, hi, train_data, data_dir):
 
 
 def use_coord_batch(start_idx, end_idx, train_data, data_dir):
-    Parallel(n_jobs=8)(delayed(_coord_batch)(lo, hi, train_data, data_dir) for lo, hi in zip(start_idx, end_idx))
+    Parallel(n_jobs=6)(delayed(_coord_batch)(lo, hi, train_data, data_dir) for lo, hi in zip(start_idx, end_idx))
     '''for lo, hi in zip(start_idx, end_idx):
         _coord_batch(lo, hi, train_data, data_dir)'''

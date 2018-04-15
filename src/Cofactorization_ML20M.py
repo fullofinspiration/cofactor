@@ -27,7 +27,7 @@ if __name__ == '__main__':
     # Change this to wherever you saved the pre-processed data following [this notebook](./preprocess_ML20M.ipynb).
     # 修改处
     # DATA_DIR = 'E:\datasets\ml-1m\pro'
-    DATA_DIR = 'E:\datasets\ml-10m\pro'
+    DATA_DIR = 'E:\datasets\ml-1m\pro'
     unique_uid = list()
     with open(os.path.join(DATA_DIR, 'unique_uid.txt'), 'r') as f:
         for line in f:
@@ -74,23 +74,23 @@ if __name__ == '__main__':
     from joblib import Parallel, delayed
     import solve_co_user
 
-    batch_size = 5000
-    start_idx = range(0, n_users, batch_size)
-    end_idx = start_idx[1:] + [n_users]
-    # train_data_T = train_data.T.tocsr()
-    solve_co_user.use_coord_batch(start_idx, end_idx, train_data, DATA_DIR)
+    batch_size = 800
+    start_idx = range(0, n_items, batch_size)
+    end_idx = start_idx[1:] + [n_items]
+    train_data_T = train_data.T.tocsr()
+    #solve_co_user.use_coord_batch(start_idx, end_idx, train_data_T, DATA_DIR)
     '''
     for lo, hi in zip(start_idx, end_idx):  
             _coord_batch(lo, hi, train_data, DATA_DIR)
 
     pass
-    '''
-    X = sparse.csr_matrix((n_items, n_items), dtype='float32')
+    
+    X = sparse.csr_matrix((n_users, n_users), dtype='float32')
     for lo, hi in zip(start_idx, end_idx):
         coords = np.load(os.path.join(DATA_DIR, 'coo_%d_%d.npy' % (lo, hi)))
         rows = coords[:, 0]
         cols = coords[:, 1]
-        tmp = sparse.coo_matrix((np.ones_like(rows), (rows, cols)), shape=(n_items, n_items), dtype='float32').tocsr()
+        tmp = sparse.coo_matrix((np.ones_like(rows), (rows, cols)), shape=(n_users, n_users), dtype='float32').tocsr()
         X = X + tmp
         print("User %d to %d finished" % (lo, hi))
         sys.stdout.flush()
@@ -99,16 +99,14 @@ if __name__ == '__main__':
     np.save(os.path.join(DATA_DIR, 'coordinate_co_binary_data.npy'), X.data)
     np.save(os.path.join(DATA_DIR, 'coordinate_co_binary_indices.npy'), X.indices)
     np.save(os.path.join(DATA_DIR, 'coordinate_co_binary_indptr.npy'), X.indptr)
-    '''
-    float(X.nnz) / np.prod(X.shape)
-    '''
+    float(X.nnz) / np.prod(X.shape)'''
     # ### Or load the pre-saved co-occurrence matrix
     # or co-occurrence matrix from the entire user history
     dir_predix = DATA_DIR
     data = np.load(os.path.join(dir_predix, 'coordinate_co_binary_data.npy'))
     indices = np.load(os.path.join(dir_predix, 'coordinate_co_binary_indices.npy'))
     indptr = np.load(os.path.join(dir_predix, 'coordinate_co_binary_indptr.npy'))
-    X = sparse.csr_matrix((data, indices, indptr), shape=(n_items, n_items))
+    X = sparse.csr_matrix((data, indices, indptr), shape=(n_users, n_users))
     float(X.nnz) / np.prod(X.shape)
 
 
@@ -163,7 +161,7 @@ if __name__ == '__main__':
                             random_state=98765, save_params=True, save_dir=save_dir, early_stopping=True, verbose=True,
                             lam_theta=lam_theta, lam_beta=lam_beta, lam_gamma=lam_gamma, c0=c0, c1=c1)
     # import ipdb; ipdb.set_trace()  # <--- *BAMF!*
-    coder.fit(train_data, M_ns, vad_data=vad_data, batch_users=5000, k=100)
+    #coder.fit(train_data, M_ns, vad_data=vad_data, batch_users=5000, k=100)
     # import ipdb; ipdb.set_trace()  # <--- *BAMF!*
     test_data, _ = load_data(os.path.join(DATA_DIR, 'test.csv'))
     test_data.data = np.ones_like(test_data.data)
@@ -174,11 +172,11 @@ if __name__ == '__main__':
     # import ipdb; ipdb.set_trace()  # <--- *BAMF!*
     U, V = params['U'], params['V']
     # import ipdb; ipdb.set_trace()  # <--- *BAMF!*
-    # print 'Test Recall@20: %.4f' % rec_eval.recall_at_k(train_data, test_data, U, V, k=20, vad_data=vad_data)
+    print 'Test Recall@20: %.4f' % rec_eval.recall_at_k(train_data, test_data, U, V, k=20, vad_data=vad_data)
     # import ipdb; ipdb.set_trace()  # <--- *BAMF!*
-    # print 'Test Recall@50: %.4f' % rec_eval.recall_at_k(train_data, test_data, U, V, k=50, vad_data=vad_data)
+    print 'Test Recall@50: %.4f' % rec_eval.recall_at_k(train_data, test_data, U, V, k=50, vad_data=vad_data)
     # import ipdb; ipdb.set_trace()  # <--- *BAMF!*+
-    # print 'Test NDCG@100: %.4f' % rec_eval.normalized_dcg_at_k(train_data, test_data, U, V, k=100, vad_data=vad_data)
+    print 'Test NDCG@100: %.4f' % rec_eval.normalized_dcg_at_k(train_data, test_data, U, V, k=100, vad_data=vad_data)
     # import ipdb; ipdb.set_trace()  # <--- *BAMF!*
-    # print 'Test MAP@100: %.4f' % rec_eval.map_at_k(train_data, test_data, U, V, k=100, vad_data=vad_data)
-    # np.savez('CoFactor_K100_ML20M.npz', U=U, V=V)
+    print 'Test MAP@100: %.4f' % rec_eval.map_at_k(train_data, test_data, U, V, k=100, vad_data=vad_data)
+    np.savez('CoFactor_K100_ML20M.npz', U=U, V=V)

@@ -1,0 +1,2 @@
+1、本算法对movielens-100k无效（迭代时迭代到第二遍指标会急速下降）
+2、改的co-user在fit中是迭代两次，最后大概是0.26左右， 四个指标：Test Recall@20: 0.1744 Test Recall@50: 0.2070 Test NDCG@100: 0.2036 Test MAP@100: 0.0644

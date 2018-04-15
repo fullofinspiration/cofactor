@@ -1,3 +1,4 @@
+# encoding: utf-8
 '''
 
 Co-factorize the user click matrix and item co-occurrence matrix
@@ -95,14 +96,14 @@ class CoFacto(BaseEstimator, TransformerMixin):
     def _init_params(self, n_users, n_items):
         ''' Initialize all the latent factors and biases '''
         self.theta = self.init_std * \
-            np.random.randn(n_users, self.n_components).astype(self.dtype)
+                     np.random.randn(n_users, self.n_components).astype(self.dtype)
         self.beta = self.init_std * \
-            np.random.randn(n_items, self.n_components).astype(self.dtype)
+                    np.random.randn(n_items, self.n_components).astype(self.dtype)
         self.gamma = self.init_std * \
-            np.random.randn(n_items, self.n_components).astype(self.dtype)
+                     np.random.randn(n_users, self.n_components).astype(self.dtype)
         # bias for beta and gamma
-        self.bias_b = np.zeros(n_items, dtype=self.dtype)
-        self.bias_g = np.zeros(n_items, dtype=self.dtype)
+        self.bias_b = np.zeros(n_users, dtype=self.dtype)
+        self.bias_g = np.zeros(n_users, dtype=self.dtype)
         # global bias
         self.alpha = 0.0
 
@@ -133,7 +134,7 @@ class CoFacto(BaseEstimator, TransformerMixin):
             Returns the instance itself.
         '''
         n_users, n_items = X.shape
-        assert M.shape == (n_items, n_items)
+        assert M.shape == (n_users, n_users)
 
         self._init_params(n_users, n_items)
         self._update(X, M, F, vad_data, **kwargs)
@@ -163,7 +164,9 @@ class CoFacto(BaseEstimator, TransformerMixin):
     def _update_factors(self, X, XT, M, F):
         if self.verbose:
             start_t = _writeline_and_time('\tUpdating user factors...')
-        self.theta = update_theta(self.beta, X, self.c0,
+        # 增加了self.gamma，self.bias_b, self.bias_g, self.alpha,M,F
+        self.theta = update_theta(self.beta, self.gamma,
+                                  self.bias_b, self.bias_g, self.alpha, X, M, F, self.c0,
                                   self.c1, self.lam_theta,
                                   self.n_jobs,
                                   batch_size=self.batch_size)
@@ -171,9 +174,8 @@ class CoFacto(BaseEstimator, TransformerMixin):
             print('\r\tUpdating user factors: time=%.2f'
                   % (time.time() - start_t))
             start_t = _writeline_and_time('\tUpdating item factors...')
-        self.beta = update_beta(self.theta, self.gamma,
-                                self.bias_b, self.bias_g, self.alpha,
-                                XT, M, F, self.c0, self.c1, self.lam_beta,
+        self.beta = update_beta(self.theta,
+                                XT, self.c0, self.c1, self.lam_beta,
                                 self.n_jobs,
                                 batch_size=self.batch_size)
         if self.verbose:
@@ -181,7 +183,7 @@ class CoFacto(BaseEstimator, TransformerMixin):
                   % (time.time() - start_t))
             start_t = _writeline_and_time('\tUpdating context factors...')
         # here it really should be M^T and F^T, but both are symmetric
-        self.gamma = update_gamma(self.beta, self.bias_b, self.bias_g,
+        self.gamma = update_gamma(self.theta, self.bias_b, self.bias_g,
                                   self.alpha, M, F, self.lam_gamma,
                                   self.n_jobs,
                                   batch_size=self.batch_size)
@@ -193,14 +195,14 @@ class CoFacto(BaseEstimator, TransformerMixin):
     def _update_biases(self, M, F):
         if self.verbose:
             start_t = _writeline_and_time('\tUpdating bias terms...')
-        self.bias_b = update_bias(self.beta, self.gamma,
+        self.bias_b = update_bias(self.theta, self.gamma,
                                   self.bias_g, self.alpha, M, F,
                                   self.n_jobs, batch_size=self.batch_size)
         # here it really should be M^T and F^T, but both are symmetric
-        self.bias_g = update_bias(self.gamma, self.beta,
+        self.bias_g = update_bias(self.gamma, self.theta,
                                   self.bias_b, self.alpha, M, F,
                                   self.n_jobs, batch_size=self.batch_size)
-        self.alpha = update_alpha(self.beta, self.gamma,
+        self.alpha = update_alpha(self.theta, self.gamma,
                                   self.bias_b, self.bias_g, M, F,
                                   self.n_jobs, batch_size=self.batch_size)
         if self.verbose:
@@ -240,7 +242,7 @@ def get_row(Y, i):
     return Y.data[lo:hi], Y.indices[lo:hi]
 
 
-def update_theta(beta, X, c0, c1, lam_theta, n_jobs, batch_size=1000):
+def update_theta(beta, gamma, bias_b, bias_g, alpha, X, M, F, c0, c1, lam_theta, n_jobs, batch_size=1000):
     '''Update user latent factors'''
     m, n = X.shape  # m: number of users, n: number of items
     f = beta.shape[1]  # f: number of factors
@@ -252,30 +254,38 @@ def update_theta(beta, X, c0, c1, lam_theta, n_jobs, batch_size=1000):
     end_idx = start_idx[1:] + [m]
     res = Parallel(n_jobs=n_jobs)(
         delayed(_solve_weighted_factor)(
-            lo, hi, beta, X, BTBpR, c0, c1, f, lam_theta)
+            lo, hi, beta, gamma, bias_b, bias_g, alpha, X, M, F, BTBpR, c0, c1, f, lam_theta)
         for lo, hi in zip(start_idx, end_idx))
     theta = np.vstack(res)
     return theta
 
 
-def _solve_weighted_factor(lo, hi, beta, X, BTBpR, c0, c1, f, lam_theta):
+def _solve_weighted_factor(lo, hi, beta, gamma, bias_b, bias_g, alpha, X, M, F, BTBpR, c0, c1, f, lam_theta):
     theta_batch = np.empty((hi - lo, f), dtype=beta.dtype)
     for ib, u in enumerate(xrange(lo, hi)):
         x_u, idx_u = get_row(X, u)
         B_u = beta[idx_u]
-        a = x_u.dot(c1 * B_u)
-        B = BTBpR + B_u.T.dot((c1 - c0) * B_u)
+        m_u, idx_m_u = get_row(M, u)
+        G_u = gamma[idx_m_u]
+        rsd = m_u - bias_b[u] - bias_g[idx_m_u] - alpha
+        if F is not None:
+            f_u, _ = get_row(F, u)
+            GTG = G_u.T.dot(G_u * f_u[:, np.newaxis])
+            rsd *= f_u
+        else:
+            GTG = G_u.T.dot(G_u)
+        a = x_u.dot(c1 * B_u) + np.dot(rsd, G_u)
+        B = BTBpR + B_u.T.dot((c1 - c0) * B_u) + GTG
         theta_batch[ib] = LA.solve(B, a)
     return theta_batch
 
 
-def update_beta(theta, gamma, bias_b, bias_g, alpha, XT, M, F, c0, c1,
+def update_beta(theta, XT, c0, c1,
                 lam_beta, n_jobs, batch_size=1000):
     '''Update item latent factors/embeddings'''
     n, m = XT.shape  # m: number of users, n: number of items
     f = theta.shape[1]
     assert theta.shape[0] == m
-    assert gamma.shape == (n, f)
 
     TTT = c0 * np.dot(theta.T, theta)  # precompute this
     TTTpR = TTT + lam_beta * np.eye(f, dtype=theta.dtype)
@@ -284,34 +294,21 @@ def update_beta(theta, gamma, bias_b, bias_g, alpha, XT, M, F, c0, c1,
     end_idx = start_idx[1:] + [n]
     res = Parallel(n_jobs=n_jobs)(
         delayed(_solve_weighted_cofactor)(
-            lo, hi, theta, gamma, bias_b, bias_g, alpha, XT, M, F, TTTpR, c0,
+            lo, hi, theta, XT, TTTpR, c0,
             c1, f, lam_beta)
         for lo, hi in zip(start_idx, end_idx))
     beta = np.vstack(res)
     return beta
 
 
-def _solve_weighted_cofactor(lo, hi, theta, gamma, bias_b, bias_g, alpha, XT,
-                             M, F, TTTpR, c0, c1, f, lam_beta):
+def _solve_weighted_cofactor(lo, hi, theta, XT,
+                             TTTpR, c0, c1, f, lam_beta):
     beta_batch = np.empty((hi - lo, f), dtype=theta.dtype)
     for ib, i in enumerate(xrange(lo, hi)):
         x_i, idx_x_i = get_row(XT, i)
         T_i = theta[idx_x_i]
-
-        m_i, idx_m_i = get_row(M, i)
-        G_i = gamma[idx_m_i]
-
-        rsd = m_i - bias_b[i] - bias_g[idx_m_i] - alpha
-
-        if F is not None:
-            f_i, _ = get_row(F, i)
-            GTG = G_i.T.dot(G_i * f_i[:, np.newaxis])
-            rsd *= f_i
-        else:
-            GTG = G_i.T.dot(G_i)
-
-        B = TTTpR + T_i.T.dot((c1 - c0) * T_i) + GTG
-        a = x_i.dot(c1 * T_i) + np.dot(rsd, G_i)
+        B = TTTpR + T_i.T.dot((c1 - c0) * T_i)
+        a = x_i.dot(c1 * T_i)
         beta_batch[ib] = LA.solve(B, a)
     return beta_batch
 
