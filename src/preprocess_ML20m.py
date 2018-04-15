@@ -28,7 +28,7 @@ sns.set(context="paper", font_scale=1.5, rc={"lines.linewidth": 2}, font='DejaVu
 # In[2]:
 
 
-DATA_DIR = 'E:\datasets\ml-20m'
+DATA_DIR = 'E:\datasets\ml-1m'
 
 
 # In[4]:
@@ -40,8 +40,10 @@ def timestamp_to_date(timestamp):
 
 # In[5]:
 
-
-raw_data = pd.read_csv(os.path.join(DATA_DIR, 'ratings.csv'), header=0)
+#读取csv文件
+#raw_data = pd.read_csv(os.path.join(DATA_DIR, 'ratings.csv'), header=0)
+#读取txt文件
+raw_data = pd.read_table(os.path.join(DATA_DIR, 'ratings.txt'), header=0, delim_whitespace=True)
 
 
 # In[6]:
@@ -181,7 +183,7 @@ user2id = dict((uid, i) for (i, uid) in enumerate(unique_uid))
 # In[22]:
 
 
-with open(os.path.join(DATA_DIR, 'pro2', 'unique_uid.txt'), 'w') as f:
+with open(os.path.join(DATA_DIR, 'pro', 'unique_uid.txt'), 'w') as f:
     for uid in unique_uid:
         f.write('%s\n' % uid)
 
@@ -189,7 +191,7 @@ with open(os.path.join(DATA_DIR, 'pro2', 'unique_uid.txt'), 'w') as f:
 # In[23]:
 
 
-with open(os.path.join(DATA_DIR, 'pro2', 'unique_sid.txt'), 'w') as f:
+with open(os.path.join(DATA_DIR, 'pro', 'unique_sid.txt'), 'w') as f:
     for sid in unique_sid:
         f.write('%s\n' % sid)
 
@@ -314,19 +316,19 @@ def numerize(tp):
 
 
 train_data = numerize(train_raw_data)
-train_data.to_csv(os.path.join(DATA_DIR, 'pro2', 'train.csv'), index=False)
+train_data.to_csv(os.path.join(DATA_DIR, 'pro', 'train.csv'), index=False)
 
 
 # In[120]:
 
 
 vad_data = numerize(vad_raw_data)
-vad_data.to_csv(os.path.join(DATA_DIR, 'pro2', 'validation.csv'), index=False)
+vad_data.to_csv(os.path.join(DATA_DIR, 'pro', 'validation.csv'), index=False)
 
 
 # In[121]:
 
 
 test_data = numerize(test_raw_data)
-test_data.to_csv(os.path.join(DATA_DIR, 'pro2', 'test.csv'), index=False)
+test_data.to_csv(os.path.join(DATA_DIR, 'pro', 'test.csv'), index=False)
 

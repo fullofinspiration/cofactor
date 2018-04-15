@@ -87,3 +87,6 @@ ENV/
 
 # Rope project settings
 .ropeproject
+Test*
+.idea
+src/preprocess_ML20M.ipynb
