@@ -27,7 +27,7 @@ if __name__ == '__main__':
     # Change this to wherever you saved the pre-processed data following [this notebook](./preprocess_ML20M.ipynb).
     # 修改处
     # DATA_DIR = 'E:\datasets\ml-1m\pro'
-    DATA_DIR = 'E:\datasets\ml-1m\pro'
+    DATA_DIR = 'E:\datasets\ml-10m\pro'
     unique_uid = list()
     with open(os.path.join(DATA_DIR, 'unique_uid.txt'), 'r') as f:
         for line in f:
@@ -74,7 +74,7 @@ if __name__ == '__main__':
     from joblib import Parallel, delayed
     import solve_co_user
 
-    batch_size = 400
+    batch_size = 5000
     start_idx = range(0, n_users, batch_size)
     end_idx = start_idx[1:] + [n_users]
     # train_data_T = train_data.T.tocsr()
@@ -150,7 +150,7 @@ if __name__ == '__main__':
 
     # ### Train the model
     scale = 0.03
-    n_components = 10
+    n_components = 100
     max_iter = 20
     n_jobs = 8
     lam_theta = lam_beta = 1e-5 * scale
