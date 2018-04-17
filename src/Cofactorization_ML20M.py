@@ -122,6 +122,7 @@ if __name__ == '__main__':
     M = X.copy()
     for i in xrange(n_items):
         lo, hi, d, idx = get_row(M, i)
+        #M.data[lo:hi] = d * n_pairs / (count[i] * count[idx])
         M.data[lo:hi] = np.log(d * n_pairs / (count[i] * count[idx]))
     M.data[M.data < 0] = 0
     M.eliminate_zeros()
@@ -161,7 +162,7 @@ if __name__ == '__main__':
                             random_state=98765, save_params=True, save_dir=save_dir, early_stopping=True, verbose=True,
                             lam_theta=lam_theta, lam_beta=lam_beta, lam_gamma=lam_gamma, c0=c0, c1=c1)
     # import ipdb; ipdb.set_trace()  # <--- *BAMF!*
-    #coder.fit(train_data, M_ns, vad_data=vad_data, batch_users=5000, k=100)
+    coder.fit(train_data, M_ns, vad_data=vad_data, batch_users=5000, k=100)
     # import ipdb; ipdb.set_trace()  # <--- *BAMF!*
     test_data, _ = load_data(os.path.join(DATA_DIR, 'test.csv'))
     test_data.data = np.ones_like(test_data.data)
