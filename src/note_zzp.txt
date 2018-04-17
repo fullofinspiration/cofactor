@@ -5,4 +5,8 @@
     改进前迭代12次，最后指标值为0.35069，四个指标Test Recall@20: 0.1727 Test Recall@50: 0.2177 Test NDCG@100: 0.2065 Test MAP@100: 0.0649
 更改潜在因子f之后变化很大 更改k_ns（此变量控制共同发声矩阵的非零的数）
 4、movielens 100k:
-        Validation NDCG@k: 0.24420 Test Recall@20: 0.0930 Test Recall@50: 0.1625 Test NDCG@100: 0.1335 Test MAP@100: 0.0409
+        Validation NDCG@k: 0.24420
+        Recall@20: 0.0930
+        Recall@50: 0.1625
+        NDCG@100: 0.1335
+        MAP@100: 0.0409
