@@ -27,7 +27,7 @@ if __name__ == '__main__':
     # Change this to wherever you saved the pre-processed data following [this notebook](./preprocess_ML20M.ipynb).
     # 修改处
     # DATA_DIR = 'E:\datasets\ml-1m\pro'
-    DATA_DIR = 'E:\datasets\ml-1m\pro'
+    DATA_DIR = 'E:\datasets\ml-100k\pro'
     unique_uid = list()
     with open(os.path.join(DATA_DIR, 'unique_uid.txt'), 'r') as f:
         for line in f:
@@ -120,7 +120,7 @@ if __name__ == '__main__':
 
     # ### Construct the SPPMI matrix
     M = X.copy()
-    for i in xrange(n_items):
+    for i in xrange(n_users):
         lo, hi, d, idx = get_row(M, i)
         #M.data[lo:hi] = d * n_pairs / (count[i] * count[idx])
         M.data[lo:hi] = np.log(d * n_pairs / (count[i] * count[idx]))
