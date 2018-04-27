@@ -78,13 +78,13 @@ if __name__ == '__main__':
     start_idx = range(0, n_items, batch_size)
     end_idx = start_idx[1:] + [n_items]
     train_data_T = train_data.T.tocsr()
-    #solve_co_user.use_coord_batch(start_idx, end_idx, train_data_T, DATA_DIR)
+    solve_co_user.use_coord_batch(start_idx, end_idx, train_data_T, DATA_DIR)
     '''
     for lo, hi in zip(start_idx, end_idx):  
             _coord_batch(lo, hi, train_data, DATA_DIR)
 
     pass
-    
+    '''
     X = sparse.csr_matrix((n_users, n_users), dtype='float32')
     for lo, hi in zip(start_idx, end_idx):
         coords = np.load(os.path.join(DATA_DIR, 'coo_%d_%d.npy' % (lo, hi)))
@@ -99,7 +99,7 @@ if __name__ == '__main__':
     np.save(os.path.join(DATA_DIR, 'coordinate_co_binary_data.npy'), X.data)
     np.save(os.path.join(DATA_DIR, 'coordinate_co_binary_indices.npy'), X.indices)
     np.save(os.path.join(DATA_DIR, 'coordinate_co_binary_indptr.npy'), X.indptr)
-    float(X.nnz) / np.prod(X.shape)'''
+    float(X.nnz) / np.prod(X.shape)
     # ### Or load the pre-saved co-occurrence matrix
     # or co-occurrence matrix from the entire user history
     dir_predix = DATA_DIR
