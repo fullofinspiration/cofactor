@@ -40,7 +40,7 @@ if __name__ == '__main__':
     # In[3]:
 
 
-    DATA_DIR = 'E:\datasets\ml-20m\pro'
+    DATA_DIR = 'E:\datasets\ml-100k\pro'
 
 
     # In[4]:
@@ -158,8 +158,9 @@ if __name__ == '__main__':
 
     start_idx = range(0, n_users, batch_size)
     end_idx = start_idx[1:] + [n_users]
-
+    import solve_co_item
     #Parallel(n_jobs=8)(delayed(_coord_batch)(lo, hi, train_data) for lo, hi in zip(start_idx, end_idx))
+    solve_co_item.use_coord_batch(start_idx, end_idx, train_data, DATA_DIR)
 
 
     '''
@@ -178,7 +179,7 @@ if __name__ == '__main__':
 
     # In[19]:
 
-    '''
+
     X = sparse.csr_matrix((n_items, n_items), dtype='float32')
     
     for lo, hi in zip(start_idx, end_idx):
@@ -192,17 +193,17 @@ if __name__ == '__main__':
         
         print("User %d to %d finished" % (lo, hi))
         sys.stdout.flush()
-    '''
+
 
     # Note: Don't forget to delete all the temporary coo_LO_HI.npy files
 
     # In[20]:
 
-    '''
+
     np.save(os.path.join(DATA_DIR, 'coordinate_co_binary_data.npy'), X.data)
     np.save(os.path.join(DATA_DIR, 'coordinate_co_binary_indices.npy'), X.indices)
     np.save(os.path.join(DATA_DIR, 'coordinate_co_binary_indptr.npy'), X.indptr)
-    '''
+
 
     # In[21]:
 
@@ -370,20 +371,20 @@ if __name__ == '__main__':
     # In[33]:
 
     #import ipdb; ipdb.set_trace()  # <--- *BAMF!*
-    #print 'Test Recall@20: %.4f' % rec_eval.recall_at_k(train_data, test_data, U, V, k=20, vad_data=vad_data)
+    print 'Test Recall@20: %.4f' % rec_eval.recall_at_k(train_data, test_data, U, V, k=20, vad_data=vad_data)
     #import ipdb; ipdb.set_trace()  # <--- *BAMF!*
-    #print 'Test Recall@50: %.4f' % rec_eval.recall_at_k(train_data, test_data, U, V, k=50, vad_data=vad_data)
+    print 'Test Recall@50: %.4f' % rec_eval.recall_at_k(train_data, test_data, U, V, k=50, vad_data=vad_data)
     #import ipdb; ipdb.set_trace()  # <--- *BAMF!*+
-    #print 'Test NDCG@100: %.4f' % rec_eval.normalized_dcg_at_k(train_data, test_data, U, V, k=100, vad_data=vad_data)
+    print 'Test NDCG@100: %.4f' % rec_eval.normalized_dcg_at_k(train_data, test_data, U, V, k=100, vad_data=vad_data)
 
     #import ipdb; ipdb.set_trace()  # <--- *BAMF!*
-    #print 'Test MAP@100: %.4f' % rec_eval.map_at_k(train_data, test_data, U, V, k=100, vad_data=vad_data)
+    print 'Test MAP@100: %.4f' % rec_eval.map_at_k(train_data, test_data, U, V, k=100, vad_data=vad_data)
 
 
     # In[34]:
 
 
-    #np.savez('CoFactor_K100_ML20M.npz', U=U, V=V)
+    np.savez('CoFactor_K100_ML20M.npz', U=U, V=V)
 
 
 

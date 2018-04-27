@@ -438,7 +438,7 @@ def update_user_related_item_detail(lo, hi, beta, XT, c0, c1, f, lam_theta, leng
         a_of_sum = parameter_A.dot(beta)
         c_of_sum = np.dot(np.dot(beta.T, np.dot(np.diag(parameter_C), beta)), new_theta[idx_u_].sum(axis=0))
         user_related_item_batch[ib] = LA.solve(B_of_sum + lam_theta * np.eye(f, dtype=beta.dtype), a_of_sum - c_of_sum)
-        print(ib)
+        #print(ib)
     return user_related_item_batch
 
 
